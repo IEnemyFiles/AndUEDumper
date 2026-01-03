@@ -2,51 +2,48 @@ name: Build AndUEDumper
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
+    - name: Checkout repo
       uses: actions/checkout@v4
       with:
-        submodules: true   # sama dengan git clone --recursive
+        submodules: recursive
 
-    - name: Install dependencies (Linux/macOS)
-      if: runner.os != 'Windows'
+    - name: Install dependencies
       run: |
-        sudo apt-get update || true
-        if [ "$RUNNER_OS" = "Linux" ]; then
-          sudo apt-get install -y build-essential make gcc g++ cmake
-        fi
-        if [ "$RUNNER_OS" = "macOS" ]; then
-          brew install make gcc cmake || true
-        fi
+        sudo apt update
+        sudo apt install -y make unzip wget
 
-    - name: Install dependencies (Windows)
-      if: runner.os == 'Windows'
+    - name: Install Android NDK
       run: |
-        choco install make cmake -y
-        choco install mingw -y
-      shell: powershell
+        wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
+        unzip android-ndk-r25c-linux.zip
+        echo "NDK_HOME=$PWD/android-ndk-r25c" >> $GITHUB_ENV
 
-    - name: Build project
-      working-directory: AndUEDumper/AndUEDumper
+    - name: Verify NDK
       run: |
+        echo "NDK_HOME=$NDK_HOME"
+        ls $NDK_HOME
+
+    - name: Build AndUEDumper
+      run: |
+        cd AndUEDumper
         make clean
         make
 
-    - name: Upload build artifact
+    - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: AndUEDumper-${{ matrix.os }}
-        path: AndUEDumper/AndUEDumper/AndUEDumper
+        name: AndUEDumper-build
+        path: |
+          AndUEDumper/**/*.so
+          AndUEDumper/**/*Dumper*
+
